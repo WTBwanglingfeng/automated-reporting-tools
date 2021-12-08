@@ -1,0 +1,209 @@
+import numpy as np
+import pandas as pd
+import xlsxwriter
+from PIL import ImageGrab
+import datetime, time
+import jpype
+import asposecells
+jpype.startJVM()
+from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
+import imgkit
+import wkhtmltopdf
+from bs4 import BeautifulSoup
+from dingtalkchatbot.chatbot import DingtalkChatbot
+
+#print('11111111')
+'''读取xlsx预处理'''
+df = pd.read_excel('A.xlsx')
+df.fillna('', inplace=True)
+values = df.values[:, 3:]
+cols = []
+for x in df.columns[3:]:
+    x = x.replace('(Android)', '')
+    x = x.replace('(IOS)', '')
+    cols.append(x)
+values = np.array(values)
+df.to_excel('B.xlsx', index=False)
+
+e = xlsxwriter.Workbook('B.xlsx')
+sheet1 = e.add_worksheet('sheet1')
+
+'''字体设置'''
+bold_normal_vcenter = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'text_wrap': True  # 是否自动换行
+    
+    })
+bold_normal_right = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'right',  # 字体对齐方式
+    'text_wrap': True,  # 是否自动换行
+    'font_size':12
+})
+bold_red = e.add_format({
+    'bg_color': '#FFC7CE'
+})
+bold_green = e.add_format({
+    'bg_color': '#C6EFCE'
+})
+bold_date = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#D7E4BC',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+    'num_format': 'yyyy-mm-dd'
+})
+bold_users = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#CC0000',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+    
+    })
+bold_product = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#00FFCC',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+    
+})
+bold_chat = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#CCFFFF',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+    
+})
+bold_retention = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#CCCC00',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+})
+bold_Android = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#0066FF',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+})
+bold_IOS = e.add_format({
+    'bold': True,  # 字体加粗
+    'border': 1,  # 单元格边框宽度
+    'align': 'center',
+    'valign': 'vcenter',  # 字体对齐方式
+    'fg_color': '#FFCC00',  # 单元格背景颜色
+    'text_wrap': True,  # 是否自动换行
+})
+
+'''表格合并'''
+sheet1.set_column('A:B', 14)
+sheet1.set_column('C:D', 22)
+sheet1.set_column('D:F', 12)
+sheet1.set_column('I:K', 12)
+#日期
+sheet1.merge_range('A1:C2', time.strftime('%Y-%m-%d')+'Daily.', bold_date)
+#监控维度
+sheet1.merge_range('D1:H1', 'Android', bold_Android)
+sheet1.merge_range('I1:M1', 'IOS', bold_IOS)
+sheet1.merge_range('A3:A4', '用户量', bold_users)
+sheet1.merge_range('A5:A8', '产品使用情况', bold_product)
+sheet1.merge_range('A9:A14', '聊天功能使用情况', bold_chat)
+sheet1.merge_range('A15:A16', '留存', bold_retention)
+#新老用户维度
+sheet1.merge_range('B5:B6', '全部用户', bold_normal_vcenter)
+sheet1.merge_range('B7:B8', '新用户', bold_normal_vcenter)
+sheet1.merge_range('B9:B11', '全部用户', bold_normal_vcenter)
+sheet1.merge_range('B12:B14', '新用户', bold_normal_vcenter)
+#指标
+sheet1.write_column('C3', [
+    'DAU',
+    'DNU',
+    'app启动次数_avg',
+    'app使用时长_avg',
+    'app启动次数_avg',
+    'app使用时长_avg',
+    '对话轮数_下四分位数',
+    '对话轮数_中位数',
+    '对话轮数_上四分位数',
+    '对话轮数_下四分位数',
+    '对话轮数_中位数',
+    '对话轮数_上四分位数',
+    'R1',
+    'R7'
+], bold_normal_vcenter)
+#日期&环比同比
+sheet1.write_row('D2', cols, bold_normal_vcenter)
+'''上色'''
+for i in range(len(values)):
+    sheet1.write_row('D'+str(i+3), values[i], bold_normal_right)
+
+sheet1.conditional_format('G3:H16', {'type': 'cell',
+                                        'criteria': '>=',
+                                        'value':0.1,
+                                        'format':bold_green})
+sheet1.conditional_format('G3:H16', {'type':'cell',
+                                        'criteria': '<=',
+                                        'value': -0.1,
+                                        'format':bold_red})
+sheet1.conditional_format('L3:M16', {'type':'cell',
+                                        'criteria':'>=',
+                                        'value':0.1,
+                                        'format':bold_green})
+sheet1.conditional_format('L3:M16', {'type': 'cell',
+                                        'criteria':'<=',
+                                        'value':-0.1,
+                                        'format':bold_red})
+e.close()
+
+'''excel转html'''
+wb = Workbook('B.xlsx')
+wb.save('A.html')
+
+'''取html里有用的部分'''
+soup = BeautifulSoup(open('sheet001.htm'), features="html.parser")
+
+link = soup.find(name="link", attrs={'rel':'Stylesheet'})
+table = soup.find(name="table")
+link.append(table)
+# print(link)
+new_soup = BeautifulSoup()
+new_soup = new_soup.new_tag('html', attrs={'xmlns:v':'\"urn:schemas-microsoft-com:vml\"',
+                               'xmlns:o':'\"urn:schemas-microsoft-com:office:office\"',
+                               'xmlns:x':'\"urn:schemas-microsoft-com:office:excel\"',
+                               'xmlns':'\"http://www.w3.org/TR/REC-html40\"'})
+new_soup.insert(0, link)
+
+html = new_soup.prettify("utf-8")
+
+#保存
+with open("B.html", "wb") as file:
+    file.write(html)
+
+'''html转jpg'''
+imgkit.from_file('B.html', '日报.jpg',
+                 options = {'enable-local-file-access': None, 'encoding':'utf8'})
+
+'''发到钉钉群'''
+webhook = ''
+xiaoding = DingtalkChatbot(webhook)
+xiaoding.send_markdown(title='日报', text=time.strftime('%Y-%m-%d')+'日报\n'
+                           '> ![日报](日报.jpg)\n'
+                           '> !!!!',
+                           is_at_all=False)
